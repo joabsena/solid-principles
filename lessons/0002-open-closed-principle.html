@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 2 · Open-Closed Principle</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID Principles · Lesson 2</span>
+    <h1>Open-Closed Principle</h1>
+    <p class="sub">Make expected behavior addable without reopening stable policy.</p>
+  </header>
+
+  <div class="hook">
+    <span class="who">Code Review</span>
+    <p>“Every new payment method means another <code>if</code> in checkout.” That is a signal: the business rule is stable, but its details are leaking into the coordinator.</p>
+  </div>
+
+  <p>The <strong>Open-Closed Principle</strong> (OCP) says a module should be <strong>open for extension</strong> and <strong>closed for modification</strong>. In practice: when a known kind of behavior grows, add a new implementation behind a stable contract instead of editing the stable orchestration repeatedly.</p>
+
+  <div class="key">
+    <b>Important nuance:</b> “Closed” does not mean “never edit this file again.” It means choosing closure against a particular, expected axis of change. You cannot predict every future change, so close the seams that your domain already tells you are volatile.
+  </div>
+
+  <h2>The smell: a growing conditional</h2>
+
+  <p>Suppose a checkout service knows how every payment provider works:</p>
+
+  <pre><code><span class="kw">class</span> <span class="ty">PaymentProcessor</span> {
+  <span class="kw">async</span> <span class="fn">charge</span>(provider: <span class="ty">string</span>, request: <span class="ty">PaymentRequest</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span>&gt; {
+    <span class="kw">if</span> (provider === <span class="st">'card'</span>) {
+      <span class="cm">// card SDK details</span>
+    }
+    <span class="kw">if</span> (provider === <span class="st">'pix'</span>) {
+      <span class="cm">// Pix API details</span>
+    }
+    <span class="kw">throw</span> <span class="kw">new</span> <span class="ty">Error</span>(<span class="st">'Unsupported provider'</span>);
+  }
+}</code></pre>
+
+  <p>The first provider was cheap. The third, fourth, and fifth make the same class grow, and every change risks the checkout flow. This is not automatically bad: a tiny, stable set of cases can be clearer as a conditional. The signal is <em>repeated change along the same axis</em>.</p>
+
+  <h2>The extension seam</h2>
+
+  <p>Keep checkout responsible for the policy “charge this order.” Move provider-specific behavior behind a small contract:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">PaymentMethod</span> {
+  <span class="fn">charge</span>(request: <span class="ty">PaymentRequest</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span>&gt;;
+}
+
+<span class="kw">class</span> <span class="ty">Checkout</span> {
+  <span class="kw">constructor</span>(<span class="kw">private readonly</span> payment: <span class="ty">PaymentMethod</span>) {}
+
+  <span class="fn">pay</span>(request: <span class="ty">PaymentRequest</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span>&gt; {
+    <span class="kw">return this</span>.payment.charge(request);
+  }
+}
+
+<span class="kw">class</span> <span class="ty">PixPayment</span> <span class="kw">implements</span> <span class="ty">PaymentMethod</span> {
+  <span class="kw">async</span> <span class="fn">charge</span>(request: <span class="ty">PaymentRequest</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span>&gt; {
+    <span class="cm">// Pix-specific API details live here.</span>
+  }
+}</code></pre>
+
+  <div class="diagram">
+    <span class="box">Checkout policy</span> &nbsp;→&nbsp; <span class="box">PaymentMethod</span>
+    <br><span class="box">CardPayment</span> <span class="box">PixPayment</span> <span class="box">BoletoPayment</span>
+    <p style="font-size:.85rem;color:var(--muted)">The stable policy depends on the contract; each volatile detail extends it.</p>
+  </div>
+
+  <h2>How this connects to SRP</h2>
+
+  <p>SRP asks, “Who asks this code to change?” OCP asks, “Can one expected kind of change be added without disturbing the code that should stay stable?” They reinforce each other:</p>
+
+  <table>
+    <thead><tr><th>Observation</th><th>Question</th><th>Design move</th></tr></thead>
+    <tbody>
+      <tr><td>Provider details and checkout policy change for different reasons</td><td>SRP</td><td>Separate the actors</td></tr>
+      <tr><td>New providers keep editing checkout</td><td>OCP</td><td>Introduce <code>PaymentMethod</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="warnbox">
+    <b>Common trap:</b> Do not create an interface for every class “just in case.” OCP is not a license for speculative abstraction. Add a seam when a change axis is real, repeated, or expensive to modify safely.
+  </div>
+
+  <div class="exercise">
+    <h3>Your turn</h3>
+    <p>A <code>ReportExporter</code> has a <code>switch (format)</code> for <code>json</code>, <code>csv</code>, and <code>xml</code>. Each branch knows a different serializer. Product expects more formats next quarter.</p>
+    <ol>
+      <li>What is the likely axis of change?</li>
+      <li>Which part should become the stable policy?</li>
+      <li>What would you name the extension contract?</li>
+    </ol>
+    <details>
+      <summary>Reveal a strong answer</summary>
+      <p>The axis is <strong>export format</strong>. Keep “export this report” as the stable policy, and make each serializer implement a contract such as <code>ReportExporter</code> with <code>export(report): string</code>. Adding YAML should add <code>YamlReportExporter</code>, without editing the report orchestration.</p>
+      <p>Whether a factory or registry also needs changing is a separate design choice. OCP reduces change in the stable policy; it does not magically remove every composition change.</p>
+    </details>
+  </div>
+
+  <h2>Check yourself (recall, don't peek)</h2>
+  <ol>
+    <li>What does “closed for modification” protect?</li>
+    <li>What signal tells you a conditional needs an extension seam?</li>
+    <li>When is a conditional more pragmatic than an interface?</li>
+  </ol>
+  <details>
+    <summary>Answers</summary>
+    <ol>
+      <li>Stable orchestration code remains unchanged when expected behavior grows.</li>
+      <li>Repeated changes along one known axis keep editing the same stable code.</li>
+      <li>When the cases are few, stable, and an abstraction would add needless complexity.</li>
+    </ol>
+  </details>
+
+  <h2>Run the demo</h2>
+  <p>Compare the conditional design with the contract-based design:</p>
+  <div class="demo" style="background:#0d0f12;color:#d8e0e8;border-radius:8px;padding:1rem 1.2rem;margin:1.4rem 0;font-family:ui-monospace,monospace;font-size:.85rem;overflow-x:auto;">
+    <span style="color:#7fc98f">$ npm run demo:ocp</span><br>
+    <span style="color:#6b7684"># BEFORE: adding a provider edits PaymentProcessor</span><br>
+    <span style="color:#6b7684"># AFTER: adding a provider creates a PaymentMethod</span>
+  </div>
+
+  <div class="source">
+    <span class="label">Primary source</span><br>
+    Read Robert C. Martin's <a href="https://blog.cleancoder.com/uncle-bob/2014/05/12/TheOpenClosedPrinciple.html">The Open-Closed Principle</a>. Pay special attention to his clarification that OCP is about strategic closure, not banning version control.<br>
+    For a TypeScript-oriented companion: <a href="https://khalilstemmler.com/articles/solid-principles/solid-typescript/">Khalil Stemmler — SOLID Principles in TypeScript</a>.<br>
+    Keep the <a href="../reference/solid-cheatsheet.html">SOLID quick reference</a> nearby.
+  </div>
+
+  <div class="ask">
+    Ask me follow-ups as you work: “Is this really OCP or just polymorphism?” “Where should the registry live?” “Show me an OCP violation in my code.” Your answer to the exercise can become the next learning record.
+  </div>
+
+  <nav class="lesson-nav">
+    <a href="0001-single-responsibility-principle.html">← Previous: SRP</a>
+    <a href="0004-liskov-substitution-principle.html">Next: LSP →</a>
+  </nav>
+</main>
+</body>
+</html>

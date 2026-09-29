@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SRP · Functional TypeScript Reference</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID · SRP Reference</span>
+    <h1>SRP in functional TypeScript</h1>
+    <p class="sub">Separate change ownership, not necessarily classes.</p>
+  </header>
+
+  <div class="key"><b>Core idea:</b> a function or module has one responsibility when one actor owns the reason for changing it. Functional style changes the mechanism—composition instead of objects—but not the design question.</div>
+
+  <table>
+    <thead><tr><th>Responsibility</th><th>Functional shape</th><th>Typical owner</th></tr></thead>
+    <tbody>
+      <tr><td>Business rule</td><td><code>(input) =&gt; output</code>, pure</td><td>Product / domain</td></tr>
+      <tr><td>Persistence</td><td><code>save: (value) =&gt; Promise&lt;void&gt;</code></td><td>Data / platform</td></tr>
+      <tr><td>Notification</td><td><code>notify: (to, message) =&gt; Promise&lt;void&gt;</code></td><td>Messaging / marketing</td></tr>
+      <tr><td>Observability</td><td><code>audit: (event, data) =&gt; void</code></td><td>SRE / platform</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Review checklist</h2>
+  <ol>
+    <li>Which lines are pure business rules?</li>
+    <li>Which lines talk to the outside world?</li>
+    <li>Which actor would request each kind of change?</li>
+    <li>Can effects be passed in at the composition boundary?</li>
+  </ol>
+
+  <p><a href="../lessons/0001-single-responsibility-principle.html">Class-based SRP</a> · <a href="../lessons/0003-srp-functional-programming.html">Functional SRP lesson →</a></p>
+</main>
+</body>
+</html>

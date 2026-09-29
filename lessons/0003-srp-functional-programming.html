@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 3 · SRP in Functional TypeScript</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID Principles · Extension Lesson</span>
+    <h1>SRP without classes</h1>
+    <p class="sub">Functional programming changes the shape of the code, not the question of who owns change.</p>
+  </header>
+
+  <div class="hook">
+    <span class="who">The misconception</span>
+    <p>“SRP is an object-oriented principle, so it does not apply to functions.” It applies whenever code can change for different reasons—whether that code is a class, function, module, or pipeline.</p>
+  </div>
+
+  <p>In functional TypeScript, SRP often looks like a separation between:</p>
+  <ul>
+    <li><strong>pure domain rules</strong>: data in, result out;</li>
+    <li><strong>effects</strong>: database, email, logging, HTTP;</li>
+    <li><strong>orchestration</strong>: the order in which the work happens.</li>
+  </ul>
+
+  <h2>Example 1: the mixed function</h2>
+
+  <p>This function contains at least four change owners: product pricing, persistence, notifications, and observability.</p>
+
+  <pre><code><span class="kw">async function</span> <span class="fn">placeOrder</span>(order: <span class="ty">Order</span>): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt; {
+  <span class="kw">const</span> total = order.items.reduce(
+    (sum, item) =&gt; sum + item.priceInCents * item.quantity,
+    0,
+  );
+
+  <span class="kw">await</span> database.save({ ...order, total });
+  <span class="kw">await</span> email.send(order.customerEmail, <span class="st">`Order total: </span>${total}<span class="st">`</span>);
+  logger.info(<span class="st">'order.placed'</span>, { orderId: order.id, total });
+}</code></pre>
+
+  <p>It is not bad because it is long. It is risky because changes from several actors collide in one function. A new pricing rule should not require opening the email or database code.</p>
+
+  <h2>Example 2: pure rule + explicit effects</h2>
+
+  <p>Extract the business rule as a pure function. Then pass effects into the orchestration function:</p>
+
+  <pre><code><span class="kw">const</span> <span class="fn">calculateTotal</span> = (items: <span class="ty">OrderItem</span>[]): <span class="ty">number</span> =&gt;
+  items.reduce((sum, item) =&gt; sum + item.priceInCents * item.quantity, 0);
+
+<span class="kw">type</span> <span class="ty">Effects</span> = {
+  save: (order: <span class="ty">PricedOrder</span>) =&gt; <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt;;
+  notify: (email: <span class="ty">string</span>, message: <span class="ty">string</span>) =&gt; <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt;;
+  audit: (event: <span class="ty">string</span>, data: <span class="ty">Record</span>&lt;<span class="ty">string</span>, <span class="ty">unknown</span>&gt;) =&gt; <span class="ty">void</span>;
+};
+
+<span class="kw">const</span> <span class="fn">placeOrder</span> = (effects: <span class="ty">Effects</span>) =&gt; <span class="kw">async</span> (order: <span class="ty">Order</span>) =&gt; {
+  <span class="kw">const</span> priced = { ...order, totalInCents: <span class="fn">calculateTotal</span>(order.items) };
+  <span class="kw">await</span> effects.save(priced);
+  <span class="kw">await</span> effects.notify(priced.customerEmail, <span class="st">'Order confirmed'</span>);
+  effects.audit(<span class="st">'order.placed'</span>, { orderId: priced.id });
+};</code></pre>
+
+  <div class="diagram">
+    <span class="box">Order</span> → <span class="box">pure pricing rule</span> → <span class="box">orchestrator</span>
+    <br>↙ <span class="box">database effect</span> &nbsp; <span class="box">email effect</span> &nbsp; <span class="box">audit effect</span> ↘
+    <p style="font-size:.85rem;color:var(--muted)">Composition makes dependencies visible without requiring a class hierarchy.</p>
+  </div>
+
+  <div class="key"><b>What improved?</b> The pricing actor can change <code>calculateTotal</code> without touching integrations. The messaging actor can change <code>notify</code> without touching pricing. Tests can exercise the pure rule without a database, email provider, or logger.</div>
+
+  <h2>Three smaller examples</h2>
+
+  <div class="compare">
+    <div class="bad">
+      <h3>Mixed</h3>
+      <pre><code><span class="kw">function</span> <span class="fn">formatAndSaveUser</span>(user: <span class="ty">User</span>) {
+  <span class="kw">const</span> body = JSON.stringify(user);
+  fs.writeFileSync(<span class="st">'user.json'</span>, body);
+  <span class="kw">return</span> body;
+}</code></pre>
+    </div>
+    <div class="good">
+      <h3>Separated</h3>
+      <pre><code><span class="kw">const</span> <span class="fn">serializeUser</span> = (user: <span class="ty">User</span>) =&gt;
+  JSON.stringify(user);
+
+<span class="kw">const</span> <span class="fn">saveText</span> = (path: <span class="ty">string</span>, text: <span class="ty">string</span>) =&gt;
+  fs.writeFileSync(path, text);</code></pre>
+    </div>
+  </div>
+
+  <div class="compare">
+    <div class="bad">
+      <h3>Mixed</h3>
+      <pre><code><span class="kw">const</span> <span class="fn">parseAndValidateEmail</span> = (raw: <span class="ty">string</span>) =&gt; {
+  <span class="kw">const</span> email = raw.trim().toLowerCase();
+  <span class="kw">if</span> (!email.includes(<span class="st">'@'</span>)) <span class="kw">throw new</span> <span class="ty">Error</span>();
+  <span class="kw">return</span> email;
+};</code></pre>
+    </div>
+    <div class="good">
+      <h3>Separated by rule</h3>
+      <pre><code><span class="kw">const</span> <span class="fn">normalizeEmail</span> = (raw: <span class="ty">string</span>) =&gt;
+  raw.trim().toLowerCase();
+
+<span class="kw">const</span> <span class="fn">isValidEmail</span> = (email: <span class="ty">string</span>) =&gt;
+  email.includes(<span class="st">'@'</span>);</code></pre>
+    </div>
+  </div>
+
+  <div class="warnbox"><b>Do not over-split:</b> <code>normalizeEmail</code> and <code>isValidEmail</code> might reasonably belong in one validation module if the same actor owns both. SRP is still about change ownership—not turning every expression into a function.</div>
+
+  <div class="exercise">
+    <h3>Your turn</h3>
+    <p>Classify the parts of this function by responsibility, then propose a functional split:</p>
+    <pre><code><span class="kw">async function</span> <span class="fn">registerUser</span>(input: <span class="ty">RegisterInput</span>) {
+  <span class="kw">if</span> (!input.email.includes(<span class="st">'@'</span>)) <span class="kw">throw new</span> <span class="ty">Error</span>(<span class="st">'Invalid email'</span>);
+  <span class="kw">const</span> user = { ...input, createdAt: <span class="kw">new</span> <span class="ty">Date</span>() };
+  <span class="kw">await</span> db.users.insert(user);
+  <span class="kw">await</span> mailer.sendWelcome(user.email);
+  logger.info(<span class="st">'user.registered'</span>, { id: user.id });
+  <span class="kw">return</span> user;
+}</code></pre>
+    <details>
+      <summary>Reveal a strong answer</summary>
+      <p><code>isValidEmail</code> and <code>buildUser</code> are domain functions; <code>saveUser</code>, <code>sendWelcome</code>, and <code>audit</code> are effects. The orchestration function can receive those effects as function arguments. Whether validation and user construction share one module depends on who owns their changes.</p>
+    </details>
+  </div>
+
+  <h2>Check yourself</h2>
+  <ol>
+    <li>Does functional programming remove SRP?</li>
+    <li>What is the strongest SRP signal in a function?</li>
+    <li>Why pass effects into an orchestration function?</li>
+  </ol>
+  <details>
+    <summary>Answers</summary>
+    <ol>
+      <li>No; it changes composition mechanisms, not reasons for change.</li>
+      <li>Different actors would change different parts of its behavior.</li>
+      <li>To make change ownership and testing boundaries explicit.</li>
+    </ol>
+  </details>
+
+  <h2>Run the demo</h2>
+  <div class="demo" style="background:#0d0f12;color:#d8e0e8;border-radius:8px;padding:1rem 1.2rem;margin:1.4rem 0;font-family:ui-monospace,monospace;font-size:.85rem;overflow-x:auto;">
+    <span style="color:#7fc98f">$ npm run demo:srp-fp</span><br>
+    <span style="color:#6b7684"># TypeScript demo: pure pricing + injected effects</span>
+  </div>
+
+  <div class="source">
+    <span class="label">Primary source</span><br>
+    Revisit Robert C. Martin's <a href="https://blog.cleancoder.com/uncle-bob/2014/05/08/SingleReponsibilityPrinciple.html">Single Responsibility Principle</a>, then compare the class-oriented example with this functional decomposition.<br>
+    Related lessons: <a href="0001-single-responsibility-principle.html">SRP and actors</a> · <a href="0002-open-closed-principle.html">OCP and extension seams</a> · <a href="../reference/srp-functional-programming.html">functional SRP reference</a>.
+  </div>
+
+  <div class="ask">Ask me a follow-up: “Is pure/impure separation the same as SRP?” or paste one of your TypeScript functions and we will identify its change owners together.</div>
+
+  <nav class="lesson-nav">
+    <a href="0001-single-responsibility-principle.html">← SRP fundamentals</a>
+    <a href="0002-open-closed-principle.html">OCP →</a>
+  </nav>
+</main>
+</body>
+</html>

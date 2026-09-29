@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 5 · LSP in Practice</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID Principles · LSP Deepening</span>
+    <h1>Can I safely swap this implementation?</h1>
+    <p class="sub">Four examples for recognizing behavioral substitution in everyday TypeScript.</p>
+  </header>
+
+  <div class="hook">
+    <span class="who">The one question</span>
+    <p>If a caller works correctly with the promised type, will it still work correctly when given this implementation?</p>
+  </div>
+
+  <p>Think of a type as a <strong>behavioral contract</strong>. The contract includes what inputs are accepted, what results mean, which state changes happen, and what failures callers must handle. A subtype may implement that contract in its own way; it must not quietly change the contract.</p>
+
+  <div class="key"><b>Substitution in plain language:</b> callers rely on the promise, not the implementation's name or internals. They should not need special-case code such as “if this is the read-only version, don't call write.”</div>
+
+  <h2>Example 1 · A read-only store</h2>
+
+  <p>Suppose <code>FileStore</code> promises both operations work for supported paths:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">FileStore</span> {
+  <span class="fn">read</span>(path: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span> | <span class="ty">undefined</span>&gt;;
+  <span class="fn">write</span>(path: <span class="ty">string</span>, contents: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt;;
+}
+
+<span class="kw">class</span> <span class="ty">ReadOnlyFileStore</span> <span class="kw">implements</span> <span class="ty">FileStore</span> {
+  <span class="kw">async</span> <span class="fn">read</span>(path: <span class="ty">string</span>) { <span class="cm">/* ... */</span> }
+  <span class="kw">async</span> <span class="fn">write</span>(_path: <span class="ty">string</span>, _contents: <span class="ty">string</span>) {
+    <span class="kw">throw new</span> <span class="ty">Error</span>(<span class="st">'Read only'</span>);
+  }
+}</code></pre>
+
+  <p>The method signatures fit. The behavior doesn't: a caller that accepts any <code>FileStore</code> may reasonably write to it. The subtype forces that caller to know which implementation it received.</p>
+
+  <div class="compare">
+    <div class="bad">
+      <h3>Contract too broad</h3>
+      <pre><code><span class="kw">interface</span> <span class="ty">FileStore</span> {
+  read(path: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;...&gt;;
+  write(path: <span class="ty">string</span>, contents: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt;;
+}</code></pre>
+    </div>
+    <div class="good">
+      <h3>Contracts match capability</h3>
+      <pre><code><span class="kw">interface</span> <span class="ty">ReadableStore</span> {
+  read(path: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;...&gt;;
+}
+<span class="kw">interface</span> <span class="ty">WritableStore</span> <span class="kw">extends</span> <span class="ty">ReadableStore</span> {
+  write(path: <span class="ty">string</span>, contents: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt;;
+}</code></pre>
+    </div>
+  </div>
+
+  <p>A read-only store can implement <code>ReadableStore</code>. A backup job that writes should require <code>WritableStore</code>. Each caller states the capability it depends on.</p>
+
+  <h2>Example 2 · “Every bird can fly”</h2>
+
+  <p>This model makes flight part of the <code>Bird</code> contract:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">Bird</span> {
+  <span class="fn">fly</span>(): <span class="ty">void</span>;
+}
+
+<span class="kw">class</span> <span class="ty">Penguin</span> <span class="kw">implements</span> <span class="ty">Bird</span> {
+  <span class="fn">fly</span>(): <span class="ty">void</span> {
+    <span class="kw">throw new</span> <span class="ty">Error</span>(<span class="st">'Penguins cannot fly'</span>);
+  }
+}</code></pre>
+
+  <p>The design mistake happened when the type promised more than all birds can do. Model the capability directly:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">Bird</span> { <span class="fn">eat</span>(): <span class="ty">void</span>; }
+<span class="kw">interface</span> <span class="ty">FlyingBird</span> <span class="kw">extends</span> <span class="ty">Bird</span> { <span class="fn">fly</span>(): <span class="ty">void</span>; }
+
+<span class="kw">function</span> <span class="fn">migrate</span>(bird: <span class="ty">FlyingBird</span>) { bird.fly(); }
+<span class="kw">function</span> <span class="fn">feed</span>(bird: <span class="ty">Bird</span>) { bird.eat(); }</code></pre>
+
+  <p>Penguins can be used wherever the general <code>Bird</code> promise is enough. Migration asks for the narrower <code>FlyingBird</code> capability.</p>
+
+  <h2>Example 3 · Cache miss: value or exception?</h2>
+
+  <p>Imagine a cache contract says a missing key returns <code>undefined</code>:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">Cache</span> {
+  <span class="fn">get</span>(key: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span> | <span class="ty">undefined</span>&gt;;
+}
+
+<span class="kw">const</span> <span class="fn">loadGreeting</span> = <span class="kw">async</span> (cache: <span class="ty">Cache</span>) =&gt; {
+  <span class="kw">const</span> value = <span class="kw">await</span> cache.get(<span class="st">'greeting'</span>);
+  <span class="kw">return</span> value ?? <span class="st">'Hello'</span>;
+};</code></pre>
+
+  <p>If one implementation throws <code>CacheMissError</code> instead, <code>loadGreeting</code> breaks even though <code>get</code> has the correct TypeScript signature. The implementation changed the meaning of “not found.”</p>
+
+  <div class="warnbox"><b>Exceptions aren't automatically an LSP violation.</b> If the contract says reads can fail with network errors, all implementations can report those failures. The violation is a subtype changing a case that the contract already defined, such as turning an ordinary miss into an exception.</div>
+
+  <h2>Example 4 · A valid substitution</h2>
+
+  <p>A memory store and a database store can both implement this contract:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">KeyValueStore</span> {
+  <span class="fn">get</span>(key: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span> | <span class="ty">undefined</span>&gt;;
+  <span class="fn">set</span>(key: <span class="ty">string</span>, value: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt;;
+}</code></pre>
+
+  <p>If both return <code>undefined</code> for a missing key and return a value after a successful write, a consumer can switch from memory to database without changing its logic. One may be slower internally. That is fine unless the contract promised a latency bound.</p>
+
+  <div class="diagram">
+    <span class="box">Consumer</span> → <span class="box">KeyValueStore promise</span>
+    <br><span class="box">MemoryStore</span> &nbsp;or&nbsp; <span class="box">DatabaseStore</span>
+    <p style="font-size:.85rem;color:var(--muted)">Different machinery; same observable contract.</p>
+  </div>
+
+  <h2>A useful way to inspect any contract</h2>
+  <table>
+    <thead><tr><th>Contract part</th><th>Ask</th><th>Possible LSP failure</th></tr></thead>
+    <tbody>
+      <tr><td>Inputs / preconditions</td><td>What values must callers be allowed to pass?</td><td>Subtype rejects an input the base accepts</td></tr>
+      <tr><td>Results / postconditions</td><td>What result or state change is promised?</td><td>Subtype returns less, or changes the result's meaning</td></tr>
+      <tr><td>Invariants</td><td>What must stay true before and after operations?</td><td>Subtype breaks a rule clients rely on</td></tr>
+      <tr><td>Failures</td><td>Which failures are callers expected to handle?</td><td>Subtype throws for a normal, supported case</td></tr>
+    </tbody>
+  </table>
+
+  <p>The rectangle/square example from <a href="0004-liskov-substitution-principle.html">the previous lesson</a> fits this table: independent width and height changes were part of the rectangle's behavior. A square preserved its own invariant by breaking that promise.</p>
+
+  <h2>Practice: classify the change</h2>
+  <div class="exercise">
+    <h3>Your turn</h3>
+    <p>An interface <code>Clock</code> promises <code>now()</code> returns the current time. One implementation returns UTC; another returns local time as a timestamp. Can the caller safely swap them?</p>
+    <details>
+      <summary>Reveal the reasoning</summary>
+      <p>Usually yes if both return the same kind of instant (for example, epoch milliseconds). UTC versus local display is just an internal representation choice. But if one returns a local wall-clock value without timezone information, it changes the meaning and callers cannot safely substitute it. Write down what “current time” means in the contract.</p>
+    </details>
+  </div>
+
+  <h2>Recall without peeking</h2>
+  <ol>
+    <li>What does a subtype need to preserve?</li>
+    <li>Does matching TypeScript signatures prove LSP?</li>
+    <li>When is a different exception a violation?</li>
+    <li>What is a clue that the base contract is too broad?</li>
+  </ol>
+  <details>
+    <summary>Answers</summary>
+    <ol>
+      <li>The behavioral promises and invariants clients rely on.</li>
+      <li>No. Signatures do not encode every semantic promise.</li>
+      <li>When it replaces a normal outcome the contract promised, or exceeds the documented failure behavior.</li>
+      <li>Some implementations reject, fake, ignore, or special-case one of its operations.</li>
+    </ol>
+  </details>
+
+  <div class="source">
+    <span class="label">Primary source</span><br>
+    Barbara Liskov and Jeannette Wing, <a href="https://www.cs.cmu.edu/~wing/publications/LiskovWing94.pdf">A Behavioral Notion of Subtyping</a>. Focus on the claim that properties established for a supertype should remain true for its subtypes.<br>
+    Quick review: <a href="../reference/liskov-substitution.html">LSP reference</a> · Previous: <a href="0004-liskov-substitution-principle.html">LSP and mutable rectangles</a>.
+  </div>
+
+  <div class="ask">If you want to check your understanding, explain one of these examples in your own words—or bring a TypeScript interface you use and we can inspect its contract together.</div>
+
+  <nav class="lesson-nav">
+    <a href="0004-liskov-substitution-principle.html">← LSP overview</a>
+    <a href="0006-interface-segregation-principle.html">Next principle: ISP →</a>
+  </nav>
+</main>
+</body>
+</html>

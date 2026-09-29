@@ -1,0 +1,175 @@
+<title>Lesson 1 · Single Responsibility Principle</title>
+<link rel="stylesheet" href="../assets/course.css">
+
+<div class="wrap">
+
+<header class="masthead">
+  <span class="kicker">SOLID Principles · Lesson 1</span>
+  <h1>Single Responsibility Principle</h1>
+  <p class="sub">A class should have only one reason to change.</p>
+</header>
+
+<div class="hook">
+  <span class="who">Code Review</span>
+  <p>"This class does too much. Can we split it up?" — You've heard this. But what does <em>"too much"</em> actually mean? And how do you decide where the split goes?</p>
+</div>
+
+<p>The <strong>Single Responsibility Principle</strong> (SRP) is the S in SOLID and the foundation everything else builds on. Get this wrong and the other four principles can't save you.</p>
+
+<h2>The definition — not what you think</h2>
+
+<p>Robert C. Martin's definition is precise:</p>
+
+<div class="key">
+  <b>A class should have only one reason to change.</b>
+</div>
+
+<p>Most people misinterpret this as "do one thing." That's wrong. SRP is not about functional cohesion — it's about <strong>who</strong> asks for changes.</p>
+
+<p>A "reason to change" is a <strong>person or role</strong> (an <em>actor</em>) who could request a modification. If the CFO asks for a change to reporting and the CTO asks for a change to persistence, and both affect the same class, that class has <strong>two reasons to change</strong> — even if both changes are "one line."</p>
+
+<h2>The problem</h2>
+
+<p>Here's a <code>UserService</code> that does too many things for too many different people:</p>
+
+<pre><code><span class="kw">class</span> <span class="ty">UserService</span> {
+  <span class="kw">constructor</span>(<span class="kw">private</span> <span class="ty">db</span>: Database) {}
+
+  <span class="cm">// Concern: business rules (Product Owner)</span>
+  <span class="kw">async</span> <span class="fn">register</span>(data: RegisterDto): <span class="ty">Promise</span>&lt;User&gt; {
+    <span class="kw">const</span> user = <span class="kw">await</span> <span class="kw">this</span>.db.user.create({ data });
+    <span class="kw">this</span>.sendWelcomeEmail(user.email);
+    <span class="kw">this</span>.logActivity(<span class="st">'user.registered'</span>, user.id);
+    <span class="kw">return</span> user;
+  }
+
+  <span class="cm">// Concern: email delivery (DevOps / Marketing)</span>
+  <span class="kw">async</span> <span class="fn">sendWelcomeEmail</span>(to: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt; {
+    <span class="kw">await</span> mailer.send({ to, template: <span class="st">'welcome'</span> });
+  }
+
+  <span class="cm">// Concern: observability (SRE / Platform team)</span>
+  <span class="kw">private</span> <span class="fn">logActivity</span>(event: <span class="ty">string</span>, userId: <span class="ty">string</span>): <span class="kw">void</span> {
+    logger.info(event, { userId });
+  }
+}</code></pre>
+
+<p>Three different teams could ask for changes to this one class. That's <strong>three reasons to change</strong> — three axes of coupling. When the marketing team wants a new email template, they're touching the same file the product team modifies for business rules. Merge conflicts, regressions, fear.</p>
+
+<h2>The fix: separate by actor</h2>
+
+<p>Each concern moves to its own class, owned by the team that changes it:</p>
+
+<pre><code><span class="cm">// Team: Product — owns registration logic</span>
+<span class="kw">class</span> <span class="ty">RegisterUserUseCase</span> {
+  <span class="kw">constructor</span>(
+    <span class="kw">private</span> <span class="ty">userRepo</span>: IUserRepository,
+    <span class="kw">private</span> <span class="ty">notifier</span>: INotificationService,
+  ) {}
+
+  <span class="kw">async</span> <span class="fn">execute</span>(data: RegisterDto): <span class="ty">Promise</span>&lt;User&gt; {
+    <span class="kw">const</span> user = <span class="kw">await</span> <span class="kw">this</span>.userRepo.create(data);
+    <span class="kw">await</span> <span class="kw">this</span>.notifier.userRegistered(user);
+    <span class="kw">return</span> user;
+  }
+}
+
+<span class="cm">// Team: Platform — owns email delivery</span>
+<span class="kw">class</span> <span class="ty">EmailNotificationService</span> <span class="kw">implements</span> <span class="ty">INotificationService</span> {
+  <span class="kw">async</span> <span class="fn">userRegistered</span>(user: User): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt; {
+    <span class="kw">await</span> mailer.send({ to: user.email, template: <span class="st">'welcome'</span> });
+  }
+}
+
+<span class="cm">// Team: SRE — owns logging / observability</span>
+<span class="kw">class</span> <span class="ty">ObservabilityService</span> {
+  <span class="fn">logUserCreated</span>(userId: <span class="ty">string</span>): <span class="kw">void</span> {
+    logger.info(<span class="st">'user.registered'</span>, { userId });
+  }
+}</code></pre>
+
+<h2>The mental model</h2>
+
+<div class="diagram">
+  <span class="box bad">BEFORE: one class<br>changed by 3 teams</span>
+  &nbsp;➜&nbsp;
+  <span class="box">User<br>Registration</span>
+  <span class="box">Email<br>Delivery</span>
+  <span class="box">Activity<br>Logging</span>
+  <p style="font-size:.85rem; color:var(--muted)">Each box = one reason to change = one team</p>
+</div>
+
+<div class="warnbox">
+  <b>Common trap:</b> Don't blindly split every function into its own class. SRP is about <strong>actors</strong>, not functions. If the same person owns both <code>validateEmail</code> and <code>hashPassword</code>, they can live together. The question is: <em>who asks for changes?</em>
+</div>
+
+<h2>Exercise: spot the responsibilities</h2>
+
+<div class="exercise">
+  <h3>Your Turn</h3>
+  <p>Below is a simplified <code>OrderProcessor</code>. How many <strong>reasons to change</strong> (distinct actors) can you find? Write them down before expanding the answer.</p>
+
+<pre><code><span class="kw">class</span> <span class="ty">OrderProcessor</span> {
+  <span class="kw">async</span> <span class="fn">process</span>(order: Order): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt; {
+    <span class="kw">if</span> (!<span class="kw">this</span>.validateStock(order)) <span class="kw">throw</span> <span class="kw">new</span> <span class="ty">Error</span>(<span class="st">'Out of stock'</span>);
+    <span class="kw">const</span> total = <span class="kw">this</span>.calculateTotal(order);
+    <span class="kw">const</span> receipt = <span class="kw">await</span> <span class="kw">this</span>.paymentGateway.charge(order.customerId, total);
+    <span class="kw">await</span> <span class="kw">this</span>.inventory.decrement(order.items);
+    <span class="kw">await</span> <span class="kw">this</span>.emailService.send(order.customerEmail, <span class="st">'Order confirmed'</span>, receipt);
+    <span class="kw">this</span>.auditLogger.log(<span class="st">'order.placed'</span>, { orderId: order.id, total });
+  }
+}</code></pre>
+
+  <details>
+    <summary>Reveal answer</summary>
+    <p><strong>At least 4 reasons to change:</strong></p>
+    <ol>
+      <li><strong>Pricing rules</strong> (<code>calculateTotal</code>) — Finance / Product team changes discount logic</li>
+      <li><strong>Payment processing</strong> (<code>paymentGateway.charge</code>) — Payments team switches providers or adds fraud checks</li>
+      <li><strong>Inventory management</strong> (<code>inventory.decrement</code>) — Warehouse / Ops team changes allocation strategy</li>
+      <li><strong>Notifications</strong> (<code>emailService.send</code>) — Marketing team changes email templates or adds SMS</li>
+    </ol>
+    <p>Also: <strong>stock validation</strong> and <strong>audit logging</strong> could be separate actors depending on org structure.</p>
+  </details>
+</div>
+
+<h2>Check yourself (recall, don't peek)</h2>
+<ol>
+  <li>SRP says a class should have one reason to change. What is a "reason"?</li>
+  <li>Is a 200-line class with 8 methods automatically an SRP violation?</li>
+  <li>When <em>shouldn't</em> you split a class further?</li>
+</ol>
+<details><summary>Answers</summary>
+<ol>
+  <li>A person or role (actor) who could request a change — like "the CFO" or "the SRE team." Not a line of code.</li>
+  <li>No. If all 8 methods serve the same actor, it's fine. SRP is about who asks for changes, not method count.</li>
+  <li>When all the methods serve the same actor, or when splitting would create more coupling than it removes (e.g., tightly related logic that always changes together).</li>
+</ol>
+</details>
+
+<h2>Run the demo</h2>
+
+<p>See the violation and the fix side by side:</p>
+
+<div class="demo" style="background:#0d0f12;color:#d8e0e8;border-radius:8px;padding:1rem 1.2rem;margin:1.4rem 0;font-family:ui-monospace,monospace;font-size:.85rem;overflow-x:auto;">
+<span style="color:#7fc98f">$ npx tsx demos/0001-srp.ts</span><br>
+<span style="color:#6b7684"># Before: 1 class, 3 reasons to change</span><br>
+<span style="color:#6b7684"># After:  3 classes, 1 reason each</span>
+</div>
+
+<div class="source">
+  <span class="label">Primary source</span><br>
+  Read Robert C. Martin's <a href="https://blog.cleancoder.com/uncle-bob/2014/05/08/SingleReponsibilityPrinciple.html">The Single Responsibility Principle</a> (his own blog, 2014).<br>
+  For TypeScript examples: <a href="https://khalilstemmler.com/articles/solid-principles/solid-typescript/">Khalil Stemmler — SOLID Principles in TypeScript</a>.
+</div>
+
+<div class="ask">
+  Stuck or curious? I'm your teacher. Ask me: "Is SRP the same as separation of concerns?" "How small is too small?" "Show me SRP in my fincheck code." Just ask.
+</div>
+
+<div class="lesson-nav">
+  <span></span>
+  <a href="0002-open-closed-principle.html">Next: Open-Closed Principle →</a>
+</div>
+
+</div>

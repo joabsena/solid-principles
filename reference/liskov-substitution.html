@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LSP · Quick Reference</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID · LSP Reference</span>
+    <h1>Liskov Substitution</h1>
+    <p class="sub">The subtype must keep the behavioral promises clients rely on.</p>
+  </header>
+
+  <div class="key"><b>Review question:</b> If I replace this implementation with another subtype, do all existing clients still get behavior consistent with the contract?</div>
+
+  <h2>Contract rules of thumb</h2>
+  <ul>
+    <li>A subtype must not require more from callers (no stronger preconditions).</li>
+    <li>A subtype must not promise less to callers (no weaker postconditions).</li>
+    <li>A subtype must preserve the invariants clients expect.</li>
+    <li>Exceptions and side effects are part of behavior too.</li>
+  </ul>
+
+  <h2>Useful diagnosis</h2>
+  <ol>
+    <li>Write down what the base type promises.</li>
+    <li>Write a client that depends only on that promise.</li>
+    <li>Substitute each implementation and inspect the result.</li>
+    <li>If a subtype needs a special case, reconsider the contract.</li>
+  </ol>
+
+  <div class="warnbox"><b>Remember:</b> this is about behavioral subtyping. It applies to class inheritance, interface implementations, and structural TypeScript types. TypeScript can check shape compatibility; it cannot prove every runtime promise.</div>
+
+  <p><a href="../lessons/0002-open-closed-principle.html">← OCP</a> · <a href="../lessons/0004-liskov-substitution-principle.html">LSP overview</a> · <a href="../lessons/0005-lsp-in-practice.html">More LSP examples →</a> · <a href="solid-cheatsheet.html">SOLID quick reference</a></p>
+</main>
+</body>
+</html>

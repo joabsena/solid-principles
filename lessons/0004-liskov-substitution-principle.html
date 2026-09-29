@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 4 · Liskov Substitution Principle</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID Principles · Lesson 4</span>
+    <h1>Liskov Substitution Principle</h1>
+    <p class="sub">Every subtype must keep the promises its clients already rely on.</p>
+  </header>
+
+  <div class="hook">
+    <span class="who">Code Review</span>
+    <p>“It implements the interface, so it must be safe to use here.” A type checker can confirm the method shapes match. It cannot confirm that the implementation keeps its behavioral promises.</p>
+  </div>
+
+  <p>The <strong>Liskov Substitution Principle</strong> (LSP) says that code written for a type should keep working when it receives a subtype. The key word is <em>behavior</em>: callers should not need to know which implementation they received in order to avoid surprises.</p>
+
+  <div class="key"><b>Practical version:</b> a subtype may do the job differently, but it must still honor the contract that clients use.</div>
+
+  <h2>A familiar violation: mutable rectangle and square</h2>
+
+  <p>Suppose <code>Rectangle</code> promises that setting the width changes only the width, and setting the height changes only the height:</p>
+
+  <pre><code><span class="kw">class</span> <span class="ty">Rectangle</span> {
+  <span class="kw">constructor</span>(<span class="kw">protected</span> width: <span class="ty">number</span>, <span class="kw">protected</span> height: <span class="ty">number</span>) {}
+
+  <span class="fn">setWidth</span>(width: <span class="ty">number</span>): <span class="ty">void</span> { <span class="kw">this</span>.width = width; }
+  <span class="fn">setHeight</span>(height: <span class="ty">number</span>): <span class="ty">void</span> { <span class="kw">this</span>.height = height; }
+  <span class="fn">area</span>(): <span class="ty">number</span> { <span class="kw">return this</span>.width * <span class="kw">this</span>.height; }
+}
+
+<span class="kw">class</span> <span class="ty">Square</span> <span class="kw">extends</span> <span class="ty">Rectangle</span> {
+  <span class="fn">setWidth</span>(width: <span class="ty">number</span>): <span class="ty">void</span> {
+    <span class="kw">this</span>.width = width;
+    <span class="kw">this</span>.height = width; <span class="cm">// preserve square invariant; break rectangle promise</span>
+  }
+}</code></pre>
+
+  <p>This compiles in TypeScript. But a client of <code>Rectangle</code> may reasonably do this:</p>
+
+  <pre><code><span class="kw">function</span> <span class="fn">resizeForBanner</span>(shape: <span class="ty">Rectangle</span>) {
+  shape.setWidth(5);
+  shape.setHeight(4);
+  <span class="kw">return</span> shape.area(); <span class="cm">// client expects 5 × 4 = 20</span>
+}</code></pre>
+
+  <p>A regular rectangle ends up 5 × 4, area 20. A square ends up 4 × 4, area 16. The caller accepted a <code>Rectangle</code>, but the subtype changed what the inherited operations mean.</p>
+
+  <div class="diagram">
+    <span class="box">Client expects</span> → <span class="box">setWidth(5)</span> → <span class="box">setHeight(4)</span> → <span class="box">area = 20</span>
+    <br><span class="box bad">Square changes both dimensions</span> → <span class="box bad">area = 16</span>
+    <p style="font-size:.85rem;color:var(--muted)">The hidden assumption in the base contract was independent width and height changes.</p>
+  </div>
+
+  <div class="warnbox"><b>Important nuance:</b> a square is mathematically a rectangle. The substitution problem comes from this particular <em>mutable API</em>: the rectangle contract permits independent changes. If the shared contract only promised an area, square and rectangle could both satisfy it.</div>
+
+  <h2>Redesign around the promise clients need</h2>
+
+  <p>Separate “has an area” from “can change width and height independently.” Then each shape implements only promises it can keep:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">Shape</span> {
+  <span class="fn">area</span>(): <span class="ty">number</span>;
+}
+
+<span class="kw">interface</span> <span class="ty">IndependentlyResizableRectangle</span> <span class="kw">extends</span> <span class="ty">Shape</span> {
+  <span class="fn">setWidth</span>(width: <span class="ty">number</span>): <span class="ty">void</span>;
+  <span class="fn">setHeight</span>(height: <span class="ty">number</span>): <span class="ty">void</span>;
+}
+
+<span class="kw">class</span> <span class="ty">Square</span> <span class="kw">implements</span> <span class="ty">Shape</span> {
+  <span class="cm">// provides area(); no independent width/height setters</span>
+}</code></pre>
+
+  <div class="diagram">
+    <span class="box">Rectangle</span> ─implements→ <span class="box">Shape: area()</span>
+    <br><span class="box">Square</span> ──────────→ <span class="box">Shape: area()</span>
+    <br><span class="box">Rectangle</span> ─────────→ <span class="box">Independent resize capability</span>
+  </div>
+
+  <p>Now <code>totalArea(shapes: Shape[])</code> can safely work with both. Code that needs independent resizing asks for the narrower resizing contract and receives only implementations that honor it.</p>
+
+  <h2>How to spot an LSP problem</h2>
+  <ol>
+    <li>State the base type’s behavioral promises in plain language.</li>
+    <li>Find a client that uses only those promises.</li>
+    <li>Substitute each subtype and see whether the client still behaves correctly.</li>
+    <li>Look for subtype checks, unexpected exceptions, ignored methods, changed invariants, or surprising side effects.</li>
+  </ol>
+
+  <p>In contract terms, a subtype should not require <em>more</em> from callers or guarantee <em>less</em> in return. It also needs to preserve invariants the supertype promises.</p>
+
+  <div class="key"><b>TypeScript reminder:</b> structural typing checks that members exist with compatible types. It does not prove behavioral compatibility. The contract lives in documentation, tests, and the expectations clients are allowed to rely on.</div>
+
+  <h2>Practice: the read-only file store</h2>
+
+  <div class="exercise">
+    <h3>Your turn</h3>
+    <p>An interface <code>FileStore</code> has <code>read(path)</code> and <code>write(path, contents)</code>. A <code>ReadOnlyFileStore</code> implements <code>write</code> by throwing <code>Error("Read only")</code>. A backup job accepts any <code>FileStore</code> and calls both methods.</p>
+    <ol>
+      <li>What assumption does the backup job make about <code>FileStore</code>?</li>
+      <li>Why does the read-only implementation break substitution?</li>
+      <li>How would you split the contracts?</li>
+    </ol>
+    <details>
+      <summary>Reveal a strong answer</summary>
+      <p>The backup job assumes every <code>FileStore</code> can write. The subtype violates that promise by throwing for a valid interface operation. Split into <code>ReadableFileStore</code> and <code>WritableFileStore</code>, or have the backup job depend only on the narrower capability it actually needs.</p>
+    </details>
+  </div>
+
+  <h2>Check yourself (recall, don't peek)</h2>
+  <ol>
+    <li>What does LSP protect?</li>
+    <li>Why can code compile and still violate LSP?</li>
+    <li>When should you split a base contract?</li>
+  </ol>
+  <details>
+    <summary>Answers</summary>
+    <ol>
+      <li>The behavioral assumptions clients make about a supertype.</li>
+      <li>The compiler checks member shapes, not every runtime promise.</li>
+      <li>When some implementations cannot honor all of its promised behavior.</li>
+    </ol>
+  </details>
+
+  <h2>Run the demo</h2>
+  <div class="demo" style="background:#0d0f12;color:#d8e0e8;border-radius:8px;padding:1rem 1.2rem;margin:1.4rem 0;font-family:ui-monospace,monospace;font-size:.85rem;overflow-x:auto;">
+    <span style="color:#7fc98f">$ npm run demo:lsp</span><br>
+    <span style="color:#6b7684"># Compare rectangle expectations with square substitution</span><br>
+    <span style="color:#6b7684"># Then see both shapes share the smaller Shape contract</span>
+  </div>
+
+  <div class="source">
+    <span class="label">Primary source</span><br>
+    Read Barbara Liskov and Jeannette Wing, <a href="https://www.cs.cmu.edu/~wing/publications/LiskovWing94.pdf">A Behavioral Notion of Subtyping</a>. The central idea: properties clients can prove about the supertype must remain true for its subtypes.<br>
+    For LSP beyond class inheritance, see Robert C. Martin's <a href="https://blog.cleancoder.com/uncle-bob/2020/10/18/Solid-Relevance.html">Solid Relevance</a>.<br>
+    Keep the <a href="../reference/liskov-substitution.html">LSP quick reference</a> nearby; earlier lessons: <a href="0001-single-responsibility-principle.html">SRP</a>, <a href="0002-open-closed-principle.html">OCP</a>, <a href="0003-srp-functional-programming.html">SRP in functional TypeScript</a>.
+  </div>
+
+  <div class="ask">Ask me follow-ups: “Would immutability change the rectangle example?” “Is throwing an exception always an LSP violation?” Or share your answer to the FileStore exercise and we’ll refine the contract together.</div>
+
+  <nav class="lesson-nav">
+    <a href="0002-open-closed-principle.html">← Previous: OCP</a>
+    <a href="0005-lsp-in-practice.html">More LSP examples →</a>
+  </nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOLID · Quick Reference</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID Principles · Reference</span>
+    <h1>Quick reference</h1>
+    <p class="sub">The question each principle helps you ask in a TypeScript code review.</p>
+  </header>
+
+  <table>
+    <thead><tr><th>Letter</th><th>Ask</th><th>Smell</th><th>Typical move</th></tr></thead>
+    <tbody>
+      <tr><td><strong>S</strong></td><td>Who asks for this class to change?</td><td>Several actors own one module</td><td>Separate by actor</td></tr>
+      <tr><td><strong>O</strong></td><td>What behavior will vary next?</td><td>Stable code grows conditionals</td><td>Put variation behind a contract</td></tr>
+      <tr><td><strong>L</strong></td><td>Can every subtype keep the promises?</td><td>Subtype needs exceptions or surprises</td><td>Redesign the abstraction</td></tr>
+      <tr><td><strong>I</strong></td><td>Does this client need every method?</td><td>Implementations throw or fake methods</td><td>Split interfaces by client need</td></tr>
+      <tr><td><strong>D</strong></td><td>Who owns the policy/detail boundary?</td><td>High-level policy constructs concrete tools</td><td>Depend on abstractions and inject details</td></tr>
+    </tbody>
+  </table>
+
+  <div class="key"><b>Pragmatic OCP test:</b> name the expected change axis. If adding a new case repeatedly edits the same stable coordinator, introduce an extension point there. If the variation is unlikely, a small conditional may be clearer.</div>
+
+  <h2>OCP in one picture</h2>
+  <div class="diagram">
+    <span class="box">Checkout policy</span> &nbsp;→&nbsp; <span class="box">PaymentMethod contract</span>
+    <br><span class="box">CardPayment</span> <span class="box">PixPayment</span> <span class="box">BoletoPayment</span>
+    <p style="font-size:.85rem;color:var(--muted)">New payment behavior adds a new implementation; the policy stays stable.</p>
+  </div>
+
+  <p><a href="../lessons/0001-single-responsibility-principle.html">← Lesson 1: SRP</a> · <a href="../lessons/0002-open-closed-principle.html">Lesson 2: OCP</a> · <a href="../lessons/0004-liskov-substitution-principle.html">Lesson 4: LSP →</a></p>
+</main>
+</body>
+</html>

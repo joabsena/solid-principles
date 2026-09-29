@@ -1,0 +1,173 @@
+/* course.css — shared stylesheet for the SOLID Principles course.
+   Tufte-inspired: generous margins, readable serif body, clean code blocks.
+   Every lesson links this so the course looks like one book. */
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #fdfcf9;
+  --muted: #6b6b6b;
+  --rule: #e0ddd4;
+  --accent: #2f5c8a;      /* deep blue — links, headings */
+  --code-bg: #f4f2ec;
+  --ok: #2e6b3e;
+  --warn: #9a5b00;
+  --maxw: 42rem;
+  /* per-principle accent colors */
+  --srp: #7a2e1f;   /* S — rust */
+  --ocp: #2f5c8a;   /* O — blue */
+  --lsp: #6b4e8a;   /* L — purple */
+  --isp: #2e7a5a;   /* I — teal */
+  --dip: #9a6b00;   /* D — gold */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e6df; --paper: #16181c; --muted: #9a978e;
+    --rule: #2e3138; --accent: #7fa8d8; --code-bg: #1f2228;
+    --ok: #7fc98f; --warn: #e0b060;
+    --srp: #e0906f; --ocp: #7fa8d8; --lsp: #b09fd8;
+    --isp: #7fc9a8; --dip: #e0b060;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.55;
+  font-size: 1.125rem;
+  margin: 0;
+  padding: 3rem 1.5rem 6rem;
+}
+
+.wrap { max-width: var(--maxw); margin: 0 auto; }
+
+/* ---- masthead ---- */
+.masthead { border-bottom: 2px solid var(--rule); padding-bottom: 1rem; margin-bottom: 2rem; }
+.masthead .kicker {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted);
+}
+h1 { font-size: 2rem; line-height: 1.15; margin: .3rem 0 .2rem; font-weight: 600; }
+.masthead .sub { color: var(--muted); font-style: italic; margin: 0; }
+
+h2 { font-size: 1.4rem; margin: 2.4rem 0 .6rem; font-weight: 600; }
+h3 { font-size: 1.1rem; margin: 1.6rem 0 .4rem; font-weight: 600; }
+
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; }
+a:hover { opacity: .75; }
+
+/* ---- the hook — why this principle matters ---- */
+.hook {
+  border-left: 4px solid var(--accent);
+  background: var(--code-bg);
+  padding: 1rem 1.2rem; margin: 1.5rem 0; border-radius: 0 6px 6px 0;
+}
+.hook .who {
+  font-family: ui-monospace, monospace; font-size: .7rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--accent); display: block; margin-bottom: .3rem;
+}
+.hook p { margin: 0; font-style: italic; }
+
+/* ---- code ---- */
+code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+code { background: var(--code-bg); padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+pre {
+  background: var(--code-bg); padding: 1rem 1.2rem; border-radius: 8px;
+  overflow-x: auto; font-size: .88rem; line-height: 1.5; border: 1px solid var(--rule);
+}
+pre code { background: none; padding: 0; }
+
+/* ---- syntax highlighting (light tags) ---- */
+.kw { color: #7a2e1f; font-weight: 600; }   /* keyword */
+.ty { color: #2f5c8a; }                      /* type */
+.st { color: #6b4e8a; }                      /* string */
+.cm { color: #6b7684; font-style: italic; }   /* comment */
+.fn { color: #2e7a5a; }                      /* function/method name */
+
+/* ---- key insight callout ---- */
+.key {
+  background: color-mix(in srgb, var(--ok) 12%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--paper));
+  padding: .8rem 1rem; border-radius: 8px; margin: 1.4rem 0;
+}
+.key b { color: var(--ok); }
+
+.warnbox {
+  background: color-mix(in srgb, var(--warn) 12%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--paper));
+  padding: .8rem 1rem; border-radius: 8px; margin: 1.4rem 0;
+}
+.warnbox b { color: var(--warn); }
+
+/* ---- diagram ---- */
+.diagram { margin: 1.6rem 0; text-align: center; }
+.box {
+  display: inline-block; padding: .5rem .8rem; border-radius: 6px;
+  font-family: ui-monospace, monospace; font-size: .82rem; margin: .2rem;
+  border: 2px solid var(--accent); color: var(--accent); background: var(--paper);
+}
+.box.bad { border-color: var(--warn); color: var(--warn); }
+
+/* ---- tables ---- */
+table { border-collapse: collapse; margin: 1.2rem 0; width: 100%; font-size: .95rem; }
+td, th { border-bottom: 1px solid var(--rule); padding: .5rem .6rem; text-align: left; vertical-align: top; }
+th { font-family: ui-monospace, monospace; font-size: .82rem; color: var(--muted); }
+
+/* ---- recall check ---- */
+details { margin: 1rem 0; border: 1px solid var(--rule); border-radius: 8px; padding: .6rem .9rem; }
+summary { cursor: pointer; font-family: ui-monospace, monospace; font-size: .85rem; color: var(--accent); }
+
+/* ---- primary source ---- */
+.source {
+  border-top: 1px solid var(--rule); margin-top: 2.5rem; padding-top: 1rem;
+  font-size: .95rem;
+}
+.source .label { font-family: ui-monospace, monospace; font-size: .7rem;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+/* ---- ask-your-teacher reminder ---- */
+.ask {
+  margin-top: 2rem; padding: .9rem 1.1rem; border: 1px dashed var(--rule);
+  border-radius: 8px; color: var(--muted); font-size: .95rem; font-style: italic;
+}
+
+/* ---- nav between lessons ---- */
+.lesson-nav { display: flex; justify-content: space-between; margin-top: 2rem;
+  font-family: ui-monospace, monospace; font-size: .85rem; }
+
+/* ---- exercise ---- */
+.exercise {
+  background: var(--code-bg);
+  border: 2px solid var(--rule);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  margin: 1.4rem 0;
+}
+.exercise h3 {
+  font-family: ui-monospace, monospace;
+  font-size: .8rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 .6rem;
+}
+
+/* ---- before/after comparison ---- */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.2rem 0; }
+.compare h3 { margin: 0 0 .4rem; font-size: .95rem; }
+.compare .bad h3 { color: var(--warn); }
+.compare .good h3 { color: var(--ok); }
+
+@media (max-width: 600px) {
+  .compare { grid-template-columns: 1fr; }
+}
+
+@media print {
+  body { padding: 0; font-size: 11pt; }
+  pre { white-space: pre-wrap; }
+  a { color: #000; }
+}
