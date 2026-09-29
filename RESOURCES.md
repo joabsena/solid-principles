@@ -12,6 +12,8 @@ High-trust primary sources for SOLID principles. Prefer Uncle Bob's own writings
 | Robert C. Martin — The Open-Closed Principle (2014) | https://blog.cleancoder.com/uncle-bob/2014/05/12/TheOpenClosedPrinciple.html | Martin's direct clarification of the principle and its pragmatic limits. | OCP, strategic closure, plugin-style extension. |
 | Barbara Liskov and Jeannette Wing — A Behavioral Notion of Subtyping (1994) | https://www.cs.cmu.edu/~wing/publications/LiskovWing94.pdf | Original research paper describing behavioral subtyping and why subtype behavior must preserve supertype properties. | LSP, contracts, invariants, preconditions and postconditions. |
 | Robert C. Martin — Solid Relevance (2020) | https://blog.cleancoder.com/uncle-bob/2020/10/18/Solid-Relevance.html | Martin clarifies LSP applies to subtype behavior, including interface implementations and structural/duck typing. | Practical LSP beyond class inheritance. |
+| Robert C. Martin — The Interface Segregation Principle (1996) | https://objectmentor.com/resources/articles/isp.pdf | Martin's original Engineering Notebook article introducing ISP and discussing fat interfaces. | Client-specific interfaces and dependency costs. |
+| Robert C. Martin — Solid Relevance (2020) | https://blog.cleancoder.com/uncle-bob/2020/10/18/Solid-Relevance.html | Martin's later concise clarification of ISP. | Small interfaces; clients should not depend on unused members. |
 | Kamil Khadeyev — SOLID Principles in TypeScript | https://khalilstemmler.com/articles/solid-principles/solid-typescript/ | Well-known TypeScript author. Modern, pragmatic, TS-first. | All five with TypeScript code examples. |
 
 ## Supplementary

@@ -5,7 +5,8 @@
     "demo:srp": "npx tsx demos/0001-srp.ts",
     "demo:ocp": "npx tsx demos/0002-ocp.ts",
     "demo:srp-fp": "npx tsx demos/0003-srp-functional.ts",
-    "demo:lsp": "npx tsx demos/0004-lsp.ts"
+    "demo:lsp": "npx tsx demos/0004-lsp.ts",
+    "demo:isp": "npx tsx demos/0005-isp.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.1",

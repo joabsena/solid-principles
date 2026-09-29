@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ISP · Quick Reference</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID · ISP Reference</span>
+    <h1>Interface Segregation</h1>
+    <p class="sub">Shape a contract around the needs of its clients.</p>
+  </header>
+
+  <div class="key"><b>Review question:</b> Does this client depend on operations it neither calls nor needs to know about?</div>
+
+  <h2>Smells</h2>
+  <ul>
+    <li>Implementations throw “not supported” from required methods.</li>
+    <li>Implementations return dummy values just to satisfy an interface.</li>
+    <li>A small client needs a large mock or fake to test one operation.</li>
+    <li>Unrelated consumers change together when an interface changes.</li>
+  </ul>
+
+  <h2>Refactoring move</h2>
+  <ol>
+    <li>List the operations each client actually needs.</li>
+    <li>Group operations that serve a cohesive client role or capability.</li>
+    <li>Give each client the narrow contract it depends on.</li>
+    <li>Let a rich implementation implement several small contracts when appropriate.</li>
+  </ol>
+
+  <div class="warnbox"><b>Pragmatic limit:</b> small does not mean one interface per method. Split when clients or implementations have different needs; keep related operations together.</div>
+
+  <p><a href="../lessons/0006-interface-segregation-principle.html">ISP lesson →</a> · <a href="solid-cheatsheet.html">SOLID quick reference</a> · <a href="liskov-substitution.html">LSP reference</a></p>
+</main>
+</body>
+</html>

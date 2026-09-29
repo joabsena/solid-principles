@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 6 · Interface Segregation Principle</title>
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <span class="kicker">SOLID Principles · Lesson 6</span>
+    <h1>Interface Segregation Principle</h1>
+    <p class="sub">Give each client the smallest useful contract for its job.</p>
+  </header>
+
+  <div class="hook">
+    <span class="who">Code Review</span>
+    <p>“This class has to implement <code>scan()</code>, but it’s just a printer.” The interface may be describing a whole product instead of the capabilities each client uses.</p>
+  </div>
+
+  <p>The <strong>Interface Segregation Principle</strong> (ISP) says clients should not be forced to depend on operations they do not use. In TypeScript, think of “interface” broadly: it can be a declared <code>interface</code>, an abstract class, or simply the object shape a function accepts.</p>
+
+  <h2>The problem: one contract for every office machine</h2>
+
+  <p>A single interface may combine printing, scanning, and faxing:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">OfficeMachine</span> {
+  <span class="fn">print</span>(document: <span class="ty">Document</span>): <span class="ty">void</span>;
+  <span class="fn">scan</span>(): <span class="ty">string</span>;
+  <span class="fn">fax</span>(number: <span class="ty">string</span>, document: <span class="ty">Document</span>): <span class="ty">void</span>;
+}
+
+<span class="kw">class</span> <span class="ty">BasicPrinter</span> <span class="kw">implements</span> <span class="ty">OfficeMachine</span> {
+  <span class="fn">print</span>(document: <span class="ty">Document</span>): <span class="ty">void</span> { <span class="cm">/* works */</span> }
+  <span class="fn">scan</span>(): <span class="ty">string</span> {
+    <span class="kw">throw new</span> <span class="ty">Error</span>(<span class="st">'Not supported'</span>);
+  }
+  <span class="fn">fax</span>(_number: <span class="ty">string</span>, _document: <span class="ty">Document</span>): <span class="ty">void</span> {
+    <span class="kw">throw new</span> <span class="ty">Error</span>(<span class="st">'Not supported'</span>);
+  }
+}</code></pre>
+
+  <p>The interface makes a basic printer pretend it can scan and fax. Meanwhile, a function that only prints invoices receives a dependency with unrelated capabilities:</p>
+
+  <pre><code><span class="kw">function</span> <span class="fn">printInvoice</span>(machine: <span class="ty">OfficeMachine</span>, invoice: <span class="ty">Document</span>) {
+  machine.print(invoice);
+}</code></pre>
+
+  <div class="warnbox"><b>Two principles meet here:</b> the broad interface violates ISP because it burdens clients with unrelated operations. The “not supported” methods can also violate LSP because the implementation cannot keep the contract those methods imply.</div>
+
+  <h2>The fix: contracts by capability</h2>
+
+  <p>Split the broad interface into contracts that match useful client roles:</p>
+
+  <pre><code><span class="kw">interface</span> <span class="ty">Printer</span> { <span class="fn">print</span>(document: <span class="ty">Document</span>): <span class="ty">void</span>; }
+<span class="kw">interface</span> <span class="ty">Scanner</span> { <span class="fn">scan</span>(): <span class="ty">string</span>; }
+<span class="kw">interface</span> <span class="ty">Fax</span> {
+  <span class="fn">fax</span>(number: <span class="ty">string</span>, document: <span class="ty">Document</span>): <span class="ty">void</span>;
+}
+
+<span class="kw">function</span> <span class="fn">printInvoice</span>(printer: <span class="ty">Printer</span>, invoice: <span class="ty">Document</span>) {
+  printer.print(invoice);
+}</code></pre>
+
+  <div class="diagram">
+    <span class="box">printInvoice</span> → <span class="box">Printer</span>
+    <br><span class="box">BasicPrinter</span> ─implements→ <span class="box">Printer</span>
+    <br><span class="box">MultiFunctionDevice</span> ─implements→ <span class="box">Printer</span> + <span class="box">Scanner</span> + <span class="box">Fax</span>
+  </div>
+
+  <p>A simple printer implements only <code>Printer</code>. A multifunction device can implement all three capabilities. The printing client works with either, and does not depend on scanning or faxing.</p>
+
+  <h2>Why the client matters</h2>
+
+  <p>“Small interface” is not a method-count contest. The useful question is: <strong>which operations belong together for this client?</strong> A printer driver may need a cohesive pair like <code>print</code> and <code>cancelPrint</code>; splitting those apart could make the client harder to use. Segregate when clients need different capabilities or implementations cannot support the same contract.</p>
+
+  <table>
+    <thead><tr><th>Signal</th><th>What it suggests</th></tr></thead>
+    <tbody>
+      <tr><td>“Not supported” method</td><td>Some implementation does not belong to this full contract</td></tr>
+      <tr><td>Different clients use different method groups</td><td>Create role or capability interfaces</td></tr>
+      <tr><td>Every client uses every operation</td><td>The interface may already be cohesive</td></tr>
+      <tr><td>One-method interfaces everywhere</td><td>You may have split beyond useful client boundaries</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Practice: media storage</h2>
+
+  <div class="exercise">
+    <h3>Your turn</h3>
+    <p>A service has this interface:</p>
+    <pre><code><span class="kw">interface</span> <span class="ty">MediaStore</span> {
+  upload(file: <span class="ty">Buffer</span>): <span class="ty">Promise</span>&lt;<span class="ty">string</span>&gt;;
+  download(id: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">Buffer</span>&gt;;
+  delete(id: <span class="ty">string</span>): <span class="ty">Promise</span>&lt;<span class="ty">void</span>&gt;;
+}</code></pre>
+    <p>An avatar thumbnail component only downloads images. An archival job uploads and downloads, but must never delete. How might you reshape the contracts for those clients?</p>
+    <details>
+      <summary>Reveal a strong answer</summary>
+      <p>Define capabilities such as <code>MediaReader</code> with <code>download</code>, <code>MediaWriter</code> with <code>upload</code>, and <code>MediaDeleter</code> with <code>delete</code>. The thumbnail component accepts only <code>MediaReader</code>. The archival job can accept the reader and writer capabilities, without acquiring a deletion operation it must not use.</p>
+      <p>Whether upload and download should be one <code>MediaReadWrite</code> contract depends on whether those capabilities are normally needed together by the clients in this system.</p>
+    </details>
+  </div>
+
+  <h2>Check yourself (recall, don't peek)</h2>
+  <ol>
+    <li>Who should an interface be shaped around?</li>
+    <li>What is a practical signal of a fat interface?</li>
+    <li>Does ISP mean every method gets its own interface?</li>
+  </ol>
+  <details>
+    <summary>Answers</summary>
+    <ol>
+      <li>The needs of the clients that depend on it.</li>
+      <li>Implementations fake, ignore, or reject methods they do not support.</li>
+      <li>No; group operations by cohesive client role or capability.</li>
+    </ol>
+  </details>
+
+  <h2>Run the demo</h2>
+  <div class="demo" style="background:#0d0f12;color:#d8e0e8;border-radius:8px;padding:1rem 1.2rem;margin:1.4rem 0;font-family:ui-monospace,monospace;font-size:.85rem;overflow-x:auto;">
+    <span style="color:#7fc98f">$ npm run demo:isp</span><br>
+    <span style="color:#6b7684"># A print-only client accepts a simple printer or a multifunction device</span>
+  </div>
+
+  <div class="source">
+    <span class="label">Primary source</span><br>
+    Robert C. Martin, <a href="https://objectmentor.com/resources/articles/isp.pdf">The Interface Segregation Principle</a> (1996). For a concise later clarification, read <a href="https://blog.cleancoder.com/uncle-bob/2020/10/18/Solid-Relevance.html">Solid Relevance</a>.<br>
+    Related: <a href="0004-liskov-substitution-principle.html">LSP and behavioral promises</a> · <a href="../reference/interface-segregation.html">ISP quick reference</a> · <a href="../reference/solid-cheatsheet.html">SOLID quick reference</a>.
+  </div>
+
+  <div class="ask">Ask me follow-ups: “Should these two methods stay together?” “How does ISP differ from SRP?” Or tell me how you would split the <code>MediaStore</code> contracts and I’ll give feedback.</div>
+
+  <nav class="lesson-nav">
+    <a href="0005-lsp-in-practice.html">← Previous: LSP examples</a>
+    <a href="0007-dependency-inversion-principle.html">Next: DIP →</a>
+  </nav>
+</main>
+</body>
+</html>
